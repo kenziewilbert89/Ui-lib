@@ -21268,6 +21268,179 @@ do
         for k in pairs(self._configs) do list[#list+1] = k end
         return list
     end
+    -- ============================================================
+    -- WINDOW WRAPPER
+    -- ============================================================
+    local _origCreateWindow = Library.CreateWindow
+    function Library:CreateWindow(opts)
+        opts = opts or {}
+        local win = _origCreateWindow(self, {
+            Title        = opts.Title or "Onyx",
+            SubTitle     = opts.Author or "",
+            Theme        = THEME_MAP[opts.Theme] or "Overworld",
+            ConfigFolder = opts.Folder or "OnyxV2",
+            KeySystem    = false,
+            Intro        = false,
+            Watermark    = false,
+            Layout       = "Auto",
+        })
+        return Library._WrapWindow(win)
+    end
+
+    function Library._WrapWindow(win)
+        local W = { _raw = win, _tabs = {}, Title = win.Title }
+        local methods = {}
+
+        function methods:Tab(opts)
+            opts = opts or {}
+            local tab = win:AddTab(opts.Title or "Tab", Library:Icon(opts.Icon), opts.Desc or "")
+            table.insert(W._tabs, tab)
+            return Library._WrapTab(tab, W)
+        end
+        function methods:SelectTab(i)
+            if type(i) == "number" then
+                local t = W._tabs[i]
+                if t then win:SelectTab(t._raw or t) end
+            else
+                win:SelectTab(i._raw or i)
+            end
+        end
+        function methods:Toggle() win:Toggle() end
+        function methods:Open() win:Show() end
+        function methods:Close() win:Hide() end
+        function methods:SetBackgroundTransparency(a) win:SetTransparency(a) end
+        function methods:SetBackgroundImageTransparency(_) end
+        function methods:OnDestroy(fn) Library:OnUnload(fn) end
+        function methods:Tag(_) end
+        function methods:EditOpenButton(t)
+            if not t or t.Enabled ~= false then Library:SetOverlay("Float", true) end
+        end
+        function methods:Dialog(o) return Library:Dialog(o) end
+        function methods:Popup(a,b,c) return Library:Popup(a,b,c) end
+        function methods:SetWatermarkTitle(t) Library:SetWatermarkTitle(t) end
+
+        return setmetatable(W, { __index = function(_, k) return methods[k] or win[k] end })
+    end
+
+    function Library._WrapTab(tab, _)
+        local T = { _raw = tab, _default = nil, Name = tab.Name }
+        local methods = {}
+
+        local function Ensure()
+            if not T._default then
+                local g = tab:AddLeftGroupbox(" ", nil)
+                if g.HeaderBar then g.HeaderBar.Visible = false end
+                if g.Seam then g.Seam.Visible = false end
+                if g.Patch then g.Patch.Visible = false end
+                T._default = g
+            end
+            return T._default
+        end
+
+        function methods:Section(opts)
+            Ensure():AddSeparatorText(opts and opts.Title or "")
+            return T
+        end
+        function methods:Toggle(opts)
+            opts = opts or {}
+            local idx = opts.Flag or ("t" .. tostring(math.random(1e9)))
+            return Library._WrapWidget(Ensure():AddToggle(idx, {
+                Text = opts.Title, Description = opts.Desc, Default = opts.Value,
+                Callback = opts.Callback, NoSave = opts.Flag == nil,
+            }))
+        end
+        function methods:Slider(opts)
+            opts = opts or {}
+            local v = opts.Value or {}
+            local idx = opts.Flag or ("s" .. tostring(math.random(1e9)))
+            return Library._WrapWidget(Ensure():AddSlider(idx, {
+                Text = opts.Title, Description = opts.Desc,
+                Min = v.Min or 0, Max = v.Max or 100, Default = v.Default or v.Min or 0,
+                Step = opts.Step or 1, Suffix = opts.Suffix,
+                Callback = opts.Callback, NoSave = opts.Flag == nil,
+            }))
+        end
+        function methods:Button(opts)
+            opts = opts or {}
+            return Library._WrapWidget(Ensure():AddButton({
+                Text = opts.Title, Description = opts.Desc,
+                Icon = Library:Icon(opts.Icon), Style = opts.Style or "Default",
+            }, opts.Callback))
+        end
+        function methods:Dropdown(opts)
+            opts = opts or {}
+            local idx = opts.Flag or ("d" .. tostring(math.random(1e9)))
+            return Library._WrapWidget(Ensure():AddDropdown(idx, {
+                Text = opts.Title, Description = opts.Desc, Values = opts.Values or {},
+                Multi = opts.Multi, Default = opts.Value,
+                Callback = opts.Callback, NoSave = opts.Flag == nil,
+            }))
+        end
+        function methods:Input(opts)
+            opts = opts or {}
+            local idx = opts.Flag or ("i" .. tostring(math.random(1e9)))
+            return Library._WrapWidget(Ensure():AddInput(idx, {
+                Text = opts.Title, Description = opts.Desc,
+                Placeholder = opts.Placeholder, Default = opts.Value,
+                Callback = opts.Callback, NoSave = opts.Flag == nil,
+            }))
+        end
+        function methods:Colorpicker(opts)
+            opts = opts or {}
+            local idx = opts.Flag or ("c" .. tostring(math.random(1e9)))
+            return Library._WrapWidget(Ensure():AddColorPicker(idx, {
+                Text = opts.Title, Description = opts.Desc, Default = opts.Default,
+                Callback = opts.Callback, NoSave = opts.Flag == nil,
+            }))
+        end
+        function methods:Paragraph(opts)
+            opts = opts or {}
+            return Library._WrapWidget(Ensure():AddParagraph({
+                Text = opts.Title, Description = opts.Desc, Icon = Library:Icon(opts.Icon),
+            }))
+        end
+        function methods:Keybind(opts)
+            opts = opts or {}
+            local idx = opts.Flag or ("k" .. tostring(math.random(1e9)))
+            return Library._WrapWidget(Ensure():AddKeybind(idx, {
+                Text = opts.Title, Description = opts.Desc, Default = opts.Value,
+                ChangedCallback = opts.Callback, NoSave = opts.Flag == nil,
+            }))
+        end
+
+        return setmetatable(T, { __index = function(_, k) return methods[k] or tab[k] end })
+    end
+
+    function Library._WrapWidget(h)
+        local H = { _raw = h }
+        local methods = {}
+        function methods:Set(v) if h and h.SetValue then h:SetValue(v) end end
+        function methods:SetValue(v) if h and h.SetValue then h:SetValue(v) end end
+        function methods:SetText(t) if h and h.SetText then h:SetText(t) end end
+        function methods:SetVisible(v) if h and h.SetVisible then h:SetVisible(v) end end
+        function methods:Refresh(v) if h and h.SetValues then h:SetValues(v) end end
+        function methods:SetImage(_, _) end
+        function methods:Destroy() if h and h.Destroy then h:Destroy() end end
+        return setmetatable(H, { __index = function(_, k) return methods[k] or (h and h[k]) end })
+    end
+
+    function Library._AttachWindUI(window)
+        if not window.Tag then function window:Tag(_) end end
+        if not window.EditOpenButton then
+            function window:EditOpenButton(t)
+                if not t or t.Enabled ~= false then Library:SetOverlay("Float", true) end
+            end
+        end
+        if not window.SetBackgroundImageTransparency then function window:SetBackgroundImageTransparency(_) end end
+        if not window.Dialog then function window:Dialog(o) return Library:Dialog(o) end end
+        if not window.Popup then function window:Popup(a, b, c) return Library:Popup(a, b, c) end end
+        if not window.SetWatermarkTitle then function window:SetWatermarkTitle(t) Library:SetWatermarkTitle(t) end end
+        if not window.SetBackgroundTransparency then function window:SetBackgroundTransparency(a) self:SetTransparency(a) end end
+        if not window.OnDestroy then function window:OnDestroy(fn) Library:OnUnload(fn) end end
+        if not window.Open then function window:Open() self:Show() end end
+        if not window.Close then function window:Close() self:Hide() end end
+        return window
+    end
 end
 
 return Library
