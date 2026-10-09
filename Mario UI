@@ -21326,16 +21326,20 @@ do
         local T = { _raw = tab, _default = nil, Name = tab.Name }
         local methods = {}
 
-        local function Ensure()
-            if not T._default then
-                local g = tab:AddLeftGroupbox(" ", nil)
-                if g.HeaderBar then g.HeaderBar.Visible = false end
-                if g.Seam then g.Seam.Visible = false end
-                if g.Patch then g.Patch.Visible = false end
-                T._default = g
-            end
-            return T._default
-        end
+local function Ensure()
+    if not tab._defaultGroup then
+        local g = tab:AddLeftGroupbox(" ", nil)
+        if g.HeaderBar then g.HeaderBar.Visible = false end
+        if g.Seam then g.Seam.Visible = false end
+        if g.Patch then g.Patch.Visible = false end
+        tab._defaultGroup = g
+        -- Paksa layout update
+        if tab.MarkDirty then tab:MarkDirty() end
+    end
+    T._default = tab._defaultGroup
+    return T._default
+end
+
 
         function methods:Section(opts)
             Ensure():AddSeparatorText(opts and opts.Title or "")
