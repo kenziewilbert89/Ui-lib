@@ -20857,15 +20857,12 @@ function Library._AttachWindUI(window)
     if not window.OnDestroy then
         function window:OnDestroy(fn) Library:OnUnload(fn) end
     end
-    if not window.SelectTab then
-        function window:SelectTab(i)
-            if type(i) == "number" then
-                local t = self.Tabs[i]
-                if t then self:_SelectTabInternal(t) end
-            else
-                self:_SelectTabInternal(i)
-            end
-        end
+    -- BARU: WindUI Open/Close
+    if not window.Open then
+        function window:Open() self:Show() end
+    end
+    if not window.Close then
+        function window:Close() self:Hide() end
     end
     return window
 end
