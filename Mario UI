@@ -21333,8 +21333,6 @@ local function Ensure()
         if g.Seam then g.Seam.Visible = false end
         if g.Patch then g.Patch.Visible = false end
         tab._defaultGroup = g
-        -- Paksa layout update
-        if tab.MarkDirty then tab:MarkDirty() end
     end
     T._default = tab._defaultGroup
     return T._default
